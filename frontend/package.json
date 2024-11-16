@@ -66,6 +66,8 @@
     "react-day-picker": "^8.10.1",
     "react-dom": "18.2.0",
     "react-edit-text": "^5.1.1",
+    "react-force-graph": "^1.44.7",
+    "react-force-graph-2d": "^1.25.8",
     "react-hook-form": "^7.52.1",
     "react-hot-toast": "^2.4.1",
     "react-json-view": "^1.21.3",
