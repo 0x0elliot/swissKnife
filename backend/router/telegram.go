@@ -24,7 +24,7 @@ type ScanningRequest struct {
 }
 
 func SetupTelegramRoutes() {
-    TELEGRAM.Get("/webhook", HandleTelegramWebhook)
+    TELEGRAM.Post("/webhook", HandleTelegramWebhook)
 
 	privTxn := TELEGRAM.Group("/private")
 	privTxn.Use(auth.SecureAuth())
