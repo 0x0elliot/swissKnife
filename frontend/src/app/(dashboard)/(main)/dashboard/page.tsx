@@ -1,20 +1,5 @@
 "use client"
-import { siteConfig } from "@/app/siteConfig";
-import React, { useEffect, useState } from "react";
-import cookies from 'nookies';
-import axios from 'axios';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination"
-import { useToast } from "@/components/ui/use-toast";
+import React from "react";
 
 export default function Dashboard() {
   return (
