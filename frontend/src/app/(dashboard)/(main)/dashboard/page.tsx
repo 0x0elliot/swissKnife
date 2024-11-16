@@ -1,18 +1,44 @@
-"use client"
+"use client";
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState(null);
+  const [error, setError] = useState(null);
+  const router = useRouter();
 
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault();
+    if (!searchQuery) return;
+
     setIsSearching(true);
-    // Here you would typically make an API call to look up the smart contract
-    setTimeout(() => setIsSearching(false), 1000); // Simulate API call
+    setError(null);
+
+    try {
+      const response = await fetch(
+        `https://eth.blockscout.com/api/v2/search?q=${encodeURIComponent(searchQuery)}`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch search results.");
+      }
+
+      const data = await response.json();
+      setSearchResults(data.items); 
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleResultClick = (address) => {
+    router.push(`/search/${address}`);
   };
 
   return (
@@ -38,8 +64,8 @@ export default function Dashboard() {
                 className="w-full pl-12 pr-32 py-6 text-lg rounded-full bg-gray-50 border-transparent focus:border-transparent focus:ring-0 hover:bg-gray-100 transition-colors"
               />
               <div className="absolute right-2">
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={isSearching}
                   className="rounded-full px-6 py-6 bg-white hover:bg-gray-50 text-gray-900 border border-gray-200 transition-colors"
                 >
@@ -55,6 +81,44 @@ export default function Dashboard() {
               </div>
             </div>
           </form>
+          {error && (
+            <div className="mt-4 text-red-500">
+              <p>Error: {error}</p>
+            </div>
+          )}
+          {searchResults && (
+            <div className="mt-8 text-left">
+              <h3 className="text-xl font-semibold mb-4">Search Results</h3>
+              <ul className="space-y-4">
+                {searchResults.map((result, index) => (
+                  <li 
+                    key={index} 
+                    className="p-4 bg-gray-100 rounded-md hover:bg-gray-200 cursor-pointer transition-colors"
+                    onClick={() => handleResultClick(result.address)}
+                  >
+                    <p>
+                      <strong>Address:</strong> {result.address}
+                    </p>
+                    {result.ens_info?.name && (
+                      <p>
+                        <strong>ENS Name:</strong> {result.ens_info.name}
+                      </p>
+                    )}
+                    {result.name && (
+                      <p>
+                        <strong>Name:</strong> {result.name}
+                      </p>
+                    )}
+                    {result.type && (
+                      <p>
+                        <strong>Type:</strong> {result.type}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </section>
     </div>
