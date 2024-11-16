@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import ReactFlow, { Background, Controls, useNodesState, useEdgesState, addEdge, MarkerType } from 'reactflow';
+import ReactFlow, { Background, Controls, useNodesState, screenToFlowPosition, useEdgesState, addEdge, MarkerType, EdgeLabelRenderer } from 'reactflow';
 import 'reactflow/dist/base.css';
 import 'reactflow/dist/style.css';
 import ELK from 'elkjs/lib/elk.bundled.js';
@@ -162,12 +162,12 @@ const TransactionDetails = ({ data }) => {
   );
 };
 
-// Update the EdgeModal component
 const EdgeModal = ({ isOpen, onClose, edgeData }) => {
+  console.log("edgeData from modal", edgeData);
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto backdrop-blur-md bg-transparent">
       <div 
         className="bg-[#3B4252] rounded-lg p-6 max-w-2xl w-full mx-auto my-8 shadow-xl"
         style={{ border: `1px solid ${colors.modalBorder}` }}
@@ -189,19 +189,21 @@ const EdgeModal = ({ isOpen, onClose, edgeData }) => {
   );
 };
 
+
 const elk = new ELK();
 
 const nodeWidth = 172;
 const nodeHeight = 36;
 
 const getLayoutedElements = async (nodes, edges, direction = 'DOWN') => {
+  console.log("nodes and edges before getlayoutedNodes", nodes, edges);
   try {
     const elkGraph = {
       id: "root",
       layoutOptions: {
         'elk.algorithm': 'layered',
         'elk.direction': 'RIGHT',
-        'nodePlacement.strategy': '',
+        'nodePlacement.strategy': 'SIMPLE',
       },
       children: nodes.map(node => ({
         id: node.id,
@@ -212,6 +214,7 @@ const getLayoutedElements = async (nodes, edges, direction = 'DOWN') => {
         id: edge.id,
         sources: [edge.source],
         targets: [edge.target],
+
       })),
     };
 
@@ -232,6 +235,7 @@ const getLayoutedElements = async (nodes, edges, direction = 'DOWN') => {
 
   } catch (error) {
     console.error("Error laying out graph with ELK:", error);
+    console.log("nodes and edges from getlayoutedNodes", nodes, edges);
     return { nodes, edges };
   }
 };
@@ -246,13 +250,21 @@ const App = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [graphDataAPI, setGraphDataAPI] = useState({ nodes: [], links: [] });
 
+  
+
+  const formatEth = (wei) => {
+    if (!wei) return '0 ETH';
+    const ethValue = parseFloat(wei) / 1e18;
+    return `${ethValue.toFixed(4)} ETH`;
+  };
+
 
   useEffect(() => {
     let links = graphDataAPI.links;
 
     console.log("selectedEdge and edges", selectedEdge, edges);
 
-    // console.log("links", links);
+    console.log("links", links);
 
     // for (let i = 0; i < links.length; i++) {
     //   console.log("links[i].source.id and selectedEdge.source", links[i].source.id, selectedEdge.source);
@@ -295,16 +307,24 @@ const App = () => {
             fontWeight: 'bold',
           },
         }));
-
+        console.log("newNodes", graphData);
         const newEdges = graphData.links.map((link) => ({
+          data: link, // Store any additional edge data
           id: `${link.source}-${link.target}`,
           source: link.source.toString(),
           target: link.target.toString(),
-          data: link.data, // Store any additional edge data
-          markerEnd: { type: MarkerType.ArrowClosed },
+          markerEnd: { type: MarkerType.ArrowClosed, color: colors.linkColor },
           type: 'smoothstep',
+          label: formatEth(link.value),
+          labelStyle: { fill: colors.background, fontWeight: 'bold'  },
+          // type: 'smoothstep',
+          // markerEnd: { type: MarkerType.ArrowClosed, color: colors.linkColor },
+          style: { stroke: colors.linkColor, strokeWidth: 2 },
+  
         }));
 
+
+        console.log("newNodes and newEdges", newNodes, newEdges);
         const layoutedElements = await getLayoutedElements(newNodes, newEdges);
 
         setNodes(layoutedElements.nodes);
@@ -329,13 +349,13 @@ const App = () => {
     setSelectedEdge(edge);
     setIsModalOpen(true);
     
-    for (let i = 0; i < links.length; i++) {
-      if (links[i].source.id === edge.source && links[i].target.id === edge.target) {
-        console.log("Selected edge data:", links[i].data);
-        setSelectedEdgeInfo(links[i].data);
-        break;
-      }
-    }
+    // for (let i = 0; i < links.length; i++) {
+    //   if (links[i].source.id === edge.source && links[i].target.id === edge.target) {
+    //     console.log("Selected edge data:", links[i].data);
+    //     setSelectedEdgeInfo(links[i].data);
+    //     break;
+    //   }
+    // }
 
   };
 
@@ -351,8 +371,10 @@ const App = () => {
           onEdgeClick={onEdgeClick}
           minZoom={0.05}
           zoom={0.1}
+          screenToFlowPosition={screenToFlowPosition}
           fitView
         >
+          
           <style jsx>{`
             .react-flow__node {
               background: ${colors.nodeFill};

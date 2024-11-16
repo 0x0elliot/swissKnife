@@ -4,19 +4,19 @@ const getTransactions = async (address) => {
   try {
     const response = await fetch(`https://eth.blockscout.com/api/v2/addresses/${address}/transactions`);
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`); // Re-throw error for consistent handling
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
-    return data.items; // Access the "items" array
+    return data.items;
   } catch (error) {
     console.error("Error fetching transactions:", error);
-    return []; // Return empty array on error
+    return [];
   }
 };
 
 const buildGraphData = async (initialAddress) => {
-  const nodes = [];
-  const links = [];
+  const nodes = new Map(); // Use Map to prevent duplicate nodes
+  const links = new Set(); // Use Set to prevent duplicate links
   const visitedAddresses = new Set();
   const queue = [initialAddress];
 
@@ -25,43 +25,61 @@ const buildGraphData = async (initialAddress) => {
     if (visitedAddresses.has(currentAddress)) continue;
 
     visitedAddresses.add(currentAddress);
-    nodes.push({ id: currentAddress });
+    nodes.set(currentAddress, { id: currentAddress });
 
-
-    try {  // Wrap the API call in a try-catch
-
+    try {
       const transactions = await getTransactions(currentAddress);
+      console.log(`Transactions for ${currentAddress}:`, transactions);
 
       transactions.forEach((transaction) => {
-        const fromAddress = transaction.from?.hash;  // Use optional chaining and .hash
-        if (fromAddress && !visitedAddresses.has(fromAddress) && fromAddress !== currentAddress) {
+        const fromAddress = transaction.from?.hash;
+        const toAddress = transaction.to?.hash;
+
+        // Skip invalid transactions
+        if (!fromAddress || !toAddress) return;
+
+        // Add nodes for both addresses
+        if (!nodes.has(fromAddress)) {
+          nodes.set(fromAddress, { id: fromAddress });
+        }
+        if (!nodes.has(toAddress)) {
+          nodes.set(toAddress, { id: toAddress });
+        }
+
+        // Create a unique link identifier to prevent duplicates
+        const linkId = `${fromAddress}-${toAddress}-${transaction.hash}`;
+        links.add({
+          id: linkId,
+          source: fromAddress,
+          target: toAddress,
+          value: transaction.value,
+          hash: transaction.hash,
+          timestamp: transaction.timestamp,
+          type: transaction.type,
+          ...transaction,
+        });
+
+        // Add connected addresses to queue if not visited
+        if (!visitedAddresses.has(fromAddress)) {
           queue.push(fromAddress);
-          nodes.push({ id: fromAddress });
-          links.push({ source: currentAddress, target: fromAddress, value: transaction.value, ...transaction });
         }
-
-        const toAddress = transaction.to?.hash;  // Use optional chaining and .hash
-
-        if (toAddress && !visitedAddresses.has(toAddress) && toAddress !== currentAddress ) {
+        if (!visitedAddresses.has(toAddress)) {
           queue.push(toAddress);
-          nodes.push({ id: toAddress });
-          links.push({ source: currentAddress, target: toAddress, value: transaction.value, ...transaction });
         }
-
       });
 
-
     } catch (error) {
-      console.error(`Error processing transactions for ${currentAddress}:`, error)
-      // Potentially add error handling logic here, like skipping this address or notifying the user.
+      console.error(`Error processing transactions for ${currentAddress}:`, error);
     }
   }
 
-  return { nodes, links };
+  return {
+    nodes: Array.from(nodes.values()),
+    links: Array.from(links)
+  };
 };
 
-
-export async function GET(req) {  // Use GET request handler
+export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const initialAddress = searchParams.get("address");
@@ -69,20 +87,20 @@ export async function GET(req) {  // Use GET request handler
     if (!initialAddress) {
       return new Response(
         JSON.stringify({ error: "Missing 'address' parameter" }),
-        { status: 400 } // Bad Request
+        { status: 400 }
       );
     }
 
     const graphData = await buildGraphData(initialAddress);
     return new Response(JSON.stringify(graphData), {
       status: 200,
-      headers: { "Content-Type": "application/json" }, // Set content type
+      headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Error in API route:", error);
     return new Response(
       JSON.stringify({ error: "Failed to fetch graph data" }),
-      { status: 500 } // Internal Server Error
+      { status: 500 }
     );
   }
 }
