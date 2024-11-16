@@ -1,4 +1,4 @@
-const MAX_ITERATIONS = 20;
+const MAX_ITERATIONS = 3;
 
 const getTransactions = async (address) => {
   try {
