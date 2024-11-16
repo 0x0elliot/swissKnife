@@ -1,37 +1,82 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
-import CytoscapeComponent from "react-cytoscapejs";
-import cytoscape from "cytoscape";
-import cola from "cytoscape-cola";
-import fcose from "cytoscape-fcose";
-// import * as d3 from "d3-force";
+import React, { useEffect, useState } from "react";
+import ReactFlow, { Background, Controls, useNodesState, useEdgesState, addEdge, MarkerType } from 'reactflow';
+import 'reactflow/dist/base.css'; // Import base styles
+import 'reactflow/dist/style.css'; // Import main styles
+import ELK from 'elkjs/lib/elk.bundled.js';
+import { Handle, Position } from '@xyflow/react';
+import { useParams } from 'next/navigation'
 
+// Nord-inspired bluish color scheme
 const colors = {
-  background: "#2E3440",
-  nodeHover: "#81A1C1",
-  nodeFill: "#4C566A",
-  nodeStroke: "#5E81AC",
-  linkColor: "#88C0D0",
-  modalBackground: "#3B4252",
-  modalText: "#D8DEE9",
-  modalBorder: "#434C5E",
-  modalHeader: "#ECEFF4",
+  background: "#2E3440", // Nord0
+  nodeHover: "#81A1C1", // Nord8
+  nodeFill: "#4C566A", // Nord3
+  nodeStroke: "#88C0D0", // Nord10
+  linkColor: "#88C0D0", // Nord10
+  modalBackground: "#3B4252", // Nord1
+  modalText: "#ECEFF4", // Nord6
+  modalBorder: "#434C5E", // Nord2
+  modalHeader: "#E5E9F0", // Nord4
+  button: "#4C566A", // Nord3
+  buttonText: "#ECEFF4", // Nord6
+  nodeText: "#ECEFF4",  // Nord6 for better contrast
+};
+
+
+const elk = new ELK();
+
+const nodeWidth = 172;
+const nodeHeight = 36;
+
+const getLayoutedElements = async (nodes, edges, direction = 'DOWN') => {
+  try {
+    const elkGraph = {
+      id: "root",
+      layoutOptions: {
+        'elk.algorithm': 'layered',
+        'elk.direction': 'RIGHT', // Set direction to RIGHT
+        'nodePlacement.strategy': '',
+      },
+      children: nodes.map(node => ({
+        id: node.id,
+        width: nodeWidth,
+        height: nodeHeight,
+      })),
+      edges: edges.map(edge => ({
+        id: edge.id,
+        sources: [edge.source],
+        targets: [edge.target],
+      })),
+    };
+
+    const graphLayout = await elk.layout(elkGraph);
+
+    const layoutedNodes = graphLayout.children.map((node) => {
+      const originalNode = nodes.find((n) => n.id === node.id);
+      return {
+        ...originalNode,
+        position: {
+          x: node.x + node.width / 2,
+          y: node.y + node.height / 2,
+        },
+      };
+    });
+
+    return { nodes: layoutedNodes, edges };
+
+  } catch (error) {
+    console.error("Error laying out graph with ELK:", error);
+    return { nodes, edges };
+  }
 };
 
 const App = () => {
-  const cyRef = useRef();
-  const [data, setData] = useState({ elements: [] });
-  const [hoveredNode, setHoveredNode] = useState(null);
-  const [initialAddress, setInitialAddress] = useState(
-    "0x4e55a258471b843eB57e4Dc6F3545438D3418c90"
-  );
-
-  // useEffect(() => {
-  //   cytoscape.use(cola);
-  // }, []);
-
-  cytoscape.use(fcose);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const { id } = useParams();
+  const [initialAddress, setInitialAddress] = useState(id);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -41,206 +86,112 @@ const App = () => {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const graphData = await response.json();
-        const cyElements = [
-          ...graphData.nodes.map((node, index) => ({
-            data: { id: node.id, x: index * 50, y: index * 25 },
-          })), // Initialize x and y
-          ...graphData.links.map((link) => ({
-            data: { source: link.source, target: link.target },
-          })),
-        ];
-        setData({ elements: cyElements });
+        console.log("graphData", graphData)
+
+        const newNodes = graphData.nodes.map((node) => ({
+          id: node.id.toString(),
+          type: 'default',
+          data: { label: `${node.id.slice(0, 6)}...${node.id.slice(-4)}` },
+        }));
+
+        const newEdges = graphData.links.map((link) => ({
+          id: `${link.source}-${link.target}`,
+          source: link.source.toString(),
+          target: link.target.toString(),
+          markerEnd: { type: MarkerType.ArrowClosed },
+          type: 'smoothstep',
+        }));
+
+        const layoutedElements = await getLayoutedElements(newNodes, newEdges); // Pass newNodes and newEdges
+
+        setNodes(layoutedElements.nodes);
+        setEdges(layoutedElements.edges);
+
       } catch (error) {
-        console.error("Error fetching graph data:", error);
+        console.error("Error fetching or laying out data:", error);
       }
     };
+
     fetchData();
   }, [initialAddress]);
 
-  const stylesheet = [
-    {
-      selector: "node",
-      style: {
-        "background-color": (ele) =>
-          ele.id() === hoveredNode?.id ? colors.nodeHover : colors.nodeFill,
-        width: 80,
-        height: 36,
-        shape: "round-rectangle",
-        "border-width": 1.5,
-        "border-color": colors.nodeStroke,
-        label: (ele) => `${ele.id().slice(0, 6)}...${ele.id().slice(-4)}`,
-        "text-valign": "center",
-        "text-halign": "center",
-        color: colors.modalHeader,
-        "font-size": "13px",
-      },
-    },
-    {
-      selector: "edge",
-      style: {
-        width: 2,
-        "line-color": colors.linkColor,
-        "target-arrow-color": colors.linkColor,
-        "target-arrow-shape": "triangle",
-        "curve-style": "bezier",
-      },
-    },
-    {
-      selector: "node:selected",
-      style: {
-        "background-color": colors.nodeHover,
-        "shadow-color": "rgba(148, 163, 184, 0.4)",
-        "shadow-blur": 15,
-        "shadow-offset-x": 0,
-        "shadow-offset-y": 0,
-      },
-    },
-  ];
+  const onConnect = (params) => {
+    setEdges((eds) => addEdge({ ...params, type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed } }, eds))
+  };
 
-  // function isolate(force, nodeA, nodeB) {
-  //   let initialize = force.initialize;
-  //   force.initialize = function () {
-  //     initialize.call(force, [nodeA, nodeB]);
-  //   };
-  //   return force;
-  // }
+ return (
+  <div className="relative w-full h-screen overflow-hidden p-4">
+  <div style={{ width: '100%', height: 'calc(100% - 0px)' }}>
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      onConnect={onConnect}
+      minZoom={1.3}
+      fitView
+    >
+          <style jsx>{`
+            .react-flow__node {
+              background: ${colors.nodeFill};
+              border: 1.5px solid ${colors.nodeStroke};
 
-  return (
-    <div className="relative w-full h-screen bg-[#2E3440] overflow-hidden">
-      <h1 className="text-4xl text-white">Wallet Details</h1>
-      <div className="flex">
-        <h2 className="text-white mr-2">Time:</h2>
-        <button className="bg-[#4C566A] text-[#D8DEE9] p-2 rounded-lg mr-2">
-          1D
-        </button>
-        <button className="bg-[#4C566A] text-[#D8DEE9] p-2 rounded-lg mr-2">
-          7D
-        </button>
-        <button className="bg-[#4C566A] text-[#D8DEE9] p-2 rounded-lg mr-2">
-          1M
-        </button>
-        <button className="bg-[#4C566A] text-[#D8DEE9] p-2 rounded-lg">
-          6M
-        </button>
-      </div>
-
-      <CytoscapeComponent
-        elements={data.elements}
-        style={{ width: "100%", height: "80%" }}
-        stylesheet={stylesheet}
-        layout={{
-          nodeSpacing: (node) => 20, // Example: 50px spacing
-          edgeLength: 100, // example: controls edge length
-          unconstrIter: 1000, // example: default 10
-          userConstIter: 100, // example: default 0
-          allConstIter: 100, // example: default 0
-          name: 'fcose',
-          // directed: true,
-          // padding: 10
-      
-         }}
-        cy={(cy) => {
-          cyRef.current = cy;
-
-          cy.on("layoutstart", (event) => {
-            const layout = event.target;
-            // const simulation = layout.simulation();
-
-            if (data.elements && cy) {
-              for (let i = 0; i < data.elements.length - 1; i++) {
-                if (data.elements[i].data.source) {
-                  continue;
-                }
-                for (let j = i + 1; j < data.elements.length; j++) {
-                  if (data.elements[j].data.source) {
-                    continue;
-                  }
-                }
-              }
+              border-radius: 8px; /* Slightly more rounded corners */
+              color: ${colors.nodeText}; /* Use nodeText for better contrast */
+              font-size: 14px; /* Slightly larger font size */
+              padding: 10px;  /* Increased padding */
+              width: 160px;
+              height: auto; /* Allow height to adjust to content */
+              text-align: center;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+              transition: background 0.2s ease; /* Smooth hover transition */
             }
-          });
 
-          cy.on("tap", "node", (event) => {
-            const node = event.target;
-            alert(`Wallet: ${node.id()}\nMore details coming soon!`);
-          });
+            .react-flow__node:hover {
+              background: ${colors.nodeHover};
+            }
 
-          // cy.on("mouseover", "node", (event) => {
-          //   setHoveredNode(event.target);
-          // });
 
-          // cy.on("mouseout", "node", () => {
-          //   setHoveredNode(null);
-          // });
-        }}
-      />
+            .react-flow__edge-path {
+              stroke: ${colors.linkColor};
+              stroke-width: 2px;
+            }
 
-      {/* {hoveredNode && (
-        <div
-          className="absolute top-0 left-1/2 transform -translate-x-1/2 rounded-lg shadow-xl w-96 transition-all duration-200 ease-out z-10 p-6"
-          style={{
-            backgroundColor: colors.modalBackground,
-            color: colors.modalText,
-          }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <svg
-                viewBox="0 0 24 24"
-                className="w-6 h-6"
-                fill="none"
-                stroke={colors.modalHeader}
-                strokeWidth="2"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <path d="M12 7v10M7 12h10" />
-              </svg>
-              <h3
-                className="text-xl font-semibold"
-                style={{ color: colors.modalHeader }}
-              >
-                Wallet Details
-              </h3>
-            </div>
-            <button
-              onClick={() => setHoveredNode(null)}
-              className="p-1 rounded-full hover:bg-gray-700 transition-colors duration-200"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="w-5 h-5"
-                fill="none"
-                stroke={colors.modalText}
-                strokeWidth="2"
-              >
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+            .react-flow__arrowhead-path {
+              fill: ${colors.linkColor};
+            }
 
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <p
-                className="text-sm font-medium"
-                style={{ color: colors.modalText }}
-              >
-                Wallet Address
-              </p>
-              <p
-                className="font-mono text-sm bg-[#434C5E] p-2 rounded break-all"
-                style={{
-                  color: colors.modalHeader,
-                  backgroundColor: colors.modalBorder,
-                }}
-              >
-                {hoveredNode.id}
-              </p>
-            </div>
-          </div>
-        </div>
-      )} */}
+            .react-flow__controls {
+              background-color: ${colors.modalBackground}; /* Match controls to modal bg */
+              border-radius: 5px;
+              padding: 8px;
+            }
+
+            .react-flow__viewport .react-flow__edge-path { /* Added .react-flow__viewport */
+              stroke: ${colors.linkColor};
+              stroke-width: 2px;
+            }
+
+            .react-flow__controls-button {
+              background-color: transparent;
+              border: none;
+              color: ${colors.modalText};
+              cursor: pointer;
+            }
+
+
+          `}</style>
+          <Controls />
+          {/* <MiniMap /> */}
+          <Background variant="dots" gap={12} size={1} color={colors.modalBorder} />
+        </ReactFlow>
+      </div>
     </div>
   );
 };
+
 
 export default App;

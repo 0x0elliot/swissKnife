@@ -1,4 +1,4 @@
-const MAX_ITERATIONS = 3;
+const MAX_ITERATIONS = 2;
 
 const getTransactions = async (address) => {
   try {
@@ -37,7 +37,7 @@ const buildGraphData = async (initialAddress) => {
         if (fromAddress && !visitedAddresses.has(fromAddress) && fromAddress !== currentAddress) {
           queue.push(fromAddress);
           nodes.push({ id: fromAddress });
-          links.push({ source: currentAddress, target: fromAddress, value: transaction.value });
+          links.push({ source: currentAddress, target: fromAddress, value: transaction.value, ...transaction });
         }
 
         const toAddress = transaction.to?.hash;  // Use optional chaining and .hash
@@ -45,7 +45,7 @@ const buildGraphData = async (initialAddress) => {
         if (toAddress && !visitedAddresses.has(toAddress) && toAddress !== currentAddress ) {
           queue.push(toAddress);
           nodes.push({ id: toAddress });
-          links.push({ source: currentAddress, target: toAddress, value: transaction.value });
+          links.push({ source: currentAddress, target: toAddress, value: transaction.value, ...transaction });
         }
 
       });
