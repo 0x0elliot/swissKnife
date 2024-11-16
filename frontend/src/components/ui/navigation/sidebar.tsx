@@ -5,7 +5,9 @@ import {
   RiBillFill,
   RiHome2Line,
   RiLinkM,
-  RiSparkling2Fill
+  RiMenuSearchFill,
+  RiSparkling2Fill,
+  RiTwitterXFill
 } from "@remixicon/react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -15,18 +17,19 @@ import {
   WorkspacesDropdownMobile
 } from "./SidebarWorkspacesDropdown"
 import { UserProfileDesktop, UserProfileMobile } from "./UserProfile"
+import { Herr_Von_Muellerhoff } from "next/font/google"
 
 const navigation = [
   { name: "Dashboard", href: siteConfig.baseLinks.dashboard, icon: RiHome2Line },
   {
-    name: 'Billing',
-    href: siteConfig.baseLinks.billing,
-    icon: RiBillFill,
+    name: 'Monitor',
+    href: '/monitor',
+    icon: RiMenuSearchFill,
   },
   {
-    name: "Discord",
-    href: "https://discord.gg/y6yPVWjdD9",
-    icon: RiLinkM,
+    name: 'Twitter',
+    href: 'https://twitter.com/0x0elliot',
+    icon: RiTwitterXFill, 
   }
 ] as const
 

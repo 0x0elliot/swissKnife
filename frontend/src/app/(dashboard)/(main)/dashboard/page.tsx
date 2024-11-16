@@ -9,6 +9,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState(null);
+  const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState(null);
   const router = useRouter();
 
@@ -18,6 +19,7 @@ export default function Dashboard() {
 
     setIsSearching(true);
     setError(null);
+    setHasSearched(true);
 
     try {
       const response = await fetch(
@@ -29,7 +31,7 @@ export default function Dashboard() {
       }
 
       const data = await response.json();
-      setSearchResults(data.items); 
+      setSearchResults(data.items);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -86,39 +88,53 @@ export default function Dashboard() {
               <p>Error: {error}</p>
             </div>
           )}
-          {searchResults && (
-            <div className="mt-8 text-left">
-              <h3 className="text-xl font-semibold mb-4">Search Results</h3>
-              <ul className="space-y-4">
-                {searchResults.map((result, index) => (
-                  <li 
-                    key={index} 
-                    className="p-4 bg-gray-100 rounded-md hover:bg-gray-200 cursor-pointer transition-colors"
-                    onClick={() => handleResultClick(result.address)}
-                  >
-                    <p>
-                      <strong>Address:</strong> {result.address}
-                    </p>
-                    {result.ens_info?.name && (
+          <div className="mt-8 text-left">
+            {!hasSearched ? (
+              <div className="p-8 bg-gray-50 rounded-lg border border-gray-100 text-center">
+                <p className="text-gray-500">
+                  Search results will appear here after you perform a search
+                </p>
+              </div>
+            ) : searchResults && searchResults.length > 0 ? (
+              <>
+                <h3 className="text-xl font-semibold mb-4">Search Results</h3>
+                <ul className="space-y-4">
+                  {searchResults.map((result, index) => (
+                    <li 
+                      key={index} 
+                      className="p-4 bg-gray-100 rounded-md hover:bg-gray-200 cursor-pointer transition-colors"
+                      onClick={() => handleResultClick(result.address)}
+                    >
                       <p>
-                        <strong>ENS Name:</strong> {result.ens_info.name}
+                        <strong>Address:</strong> {result.address}
                       </p>
-                    )}
-                    {result.name && (
-                      <p>
-                        <strong>Name:</strong> {result.name}
-                      </p>
-                    )}
-                    {result.type && (
-                      <p>
-                        <strong>Type:</strong> {result.type}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+                      {result.ens_info?.name && (
+                        <p>
+                          <strong>ENS Name:</strong> {result.ens_info.name}
+                        </p>
+                      )}
+                      {result.name && (
+                        <p>
+                          <strong>Name:</strong> {result.name}
+                        </p>
+                      )}
+                      {result.type && (
+                        <p>
+                          <strong>Type:</strong> {result.type}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <div className="p-8 bg-gray-50 rounded-lg border border-gray-100 text-center">
+                <p className="text-gray-500">
+                  No results found for your search
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </section>
     </div>
