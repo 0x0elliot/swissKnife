@@ -12,6 +12,7 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20200907205600-7a23bdc65eef
 	github.com/bold-commerce/go-shopify/v4 v4.5.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/gofiber/fiber/v2 v2.1.1
 	github.com/google/generative-ai-go v0.17.0
 	github.com/google/uuid v1.6.0

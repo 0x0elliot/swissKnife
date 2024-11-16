@@ -74,5 +74,6 @@ func ConnectToDB() {
 		&models.Subscription{},
 		&models.CheckoutSession{},
 		&models.Invoice{},
+		&models.Scanning{},
 	)
 }
