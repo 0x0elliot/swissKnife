@@ -201,9 +201,9 @@ const getLayoutedElements = async (nodes, edges, direction = 'DOWN') => {
     const elkGraph = {
       id: "root",
       layoutOptions: {
-        'elk.algorithm': 'layered',
+        'elk.algorithm': 'rectpacking',
         'elk.direction': 'RIGHT',
-        'nodePlacement.strategy': 'SIMPLE',
+        'nodePlacement.strategy': 'COMPACTION',
       },
       children: nodes.map(node => ({
         id: node.id,
@@ -297,14 +297,16 @@ const App = () => {
           },
           position: { x: 0, y: 0 },
           style: {
-            backgroundColor: node.id.toString() === initialAddress ? 'yellow' : `hsl(${Math.random() * 360}, 80%, 70%)`,
-            color: '#000',
-            border: '2px solid black',
+                        zIndex:  10,
+            backgroundColor: node.id.toString() === initialAddress ? '#FFD700' : `hsl(${Math.random() * 360}, 80%, 70%)`,
+            color: node.id.toString() === initialAddress ? '#000' : '#000',
+            border: node.id.toString() === initialAddress ? '3px solid #FF4500' : '2px solid black',
             textDecoration: node.id.toString() === initialAddress ? 'underline' : 'none',
             borderRadius: '12px',
-            boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.2)',
+            boxShadow: node.id.toString() === initialAddress ? '0px 4px 15px rgba(255, 69, 0, 0.5)' : '0px 4px 10px rgba(0, 0, 0, 0.2)',
             padding: '10px',
             fontWeight: 'bold',
+
           },
         }));
         console.log("newNodes", graphData);
@@ -315,11 +317,11 @@ const App = () => {
           target: link.target.toString(),
           markerEnd: { type: MarkerType.ArrowClosed, color: colors.linkColor },
           type: 'smoothstep',
-          label: formatEth(link.value),
+          label: `${formatEth(link.value)} (${link.to.ens_domain_name ? link.to.ens_domain_name : ""})`,
           labelStyle: { fill: colors.background, fontWeight: 'bold'  },
           // type: 'smoothstep',
           // markerEnd: { type: MarkerType.ArrowClosed, color: colors.linkColor },
-          style: { stroke: colors.linkColor, strokeWidth: 2 },
+          style: { stroke: colors.linkColor, strokeWidth: 2, },
   
         }));
 
@@ -370,9 +372,12 @@ const App = () => {
           onConnect={onConnect}
           onEdgeClick={onEdgeClick}
           minZoom={0.05}
-          zoom={0.1}
-          screenToFlowPosition={screenToFlowPosition}
+          defaultZoom={1}
           fitView
+          fitViewOptions={{
+            padding: 0.5,
+            includeHiddenNodes: false,
+          }}
         >
           
           <style jsx>{`
